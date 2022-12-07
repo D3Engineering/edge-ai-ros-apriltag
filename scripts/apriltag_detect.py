@@ -31,13 +31,21 @@ class apriltag_detector:
 			logline = str(len(detections))+" AprilTags detected.\n"
 			tag_detections = []
 			for d in detections:
-				corn = d['lb-rb-rt-lt']
+				corn = np.array(d['lb-rb-rt-lt'], dtype=np.float32)
 				logline += "ID: "+str(d['id'])+", LB: "+str(np.int32(corn[0]))+", RB: "+str(np.int32(corn[1]))+", RT: "+str(np.int32(corn[2]))+", LT: "+str(np.int32(corn[3]))+"\n"
+				#Corner Refinement
+				winsize = (5, 5)
+				zerozone = (-1, -1)
+				criteria = (cv2.TERM_CRITERIA_EPS + cv2.TermCriteria_COUNT, 40, 0.001)
+				corn_ref = corn
+				#corn_ref = cv2.cornerSubPix(cv_image, corn, winsize, zerozone, criteria)
+				logline += "[Refined] ID: "+str(d['id'])+", LB: "+str(np.int32(corn_ref[0]))+", RB: "+str(np.int32(corn_ref[1]))+", RT: "+str(np.int32(corn_ref[2]))+", LT: "+str(np.int32(corn_ref[3]))+"\n"
+
 				global camera_info
-				tag_corners = np.array([corn[0], corn[1], corn[3], corn[2]], dtype=np.float32)
+				tag_corners = np.array([corn_ref[0], corn_ref[1], corn_ref[3], corn_ref[2]], dtype=np.float32)
 				tag_shape = (2,2)
 				tag_size = 0.3 # m
-
+				#tag_size = 0.1042
 				# Define target points. BL, BR, TL, TR
 				objp = np.zeros((tag_shape[0]*tag_shape[1],3), np.float32)
 				objp[:,:2] = np.mgrid[0:tag_shape[0],0:tag_shape[1]].T.reshape(-1,2)
@@ -63,7 +71,7 @@ class apriltag_detector:
 				tag_pose_header = std_msgs.msg.Header()
 				tag_pose_header.stamp = rospy.Time.now()
 				tag_pose_cov_stamp = PoseWithCovarianceStamped(tag_pose_header, tag_pose_cov)
-				tag_detection = AprilTagDetection([d['id']], [tag_size], tag_pose_cov_stamp)
+				tag_detection = AprilTagDetection([d['id']], [tag_size], tag_pose_cov_stamp, np.array([corn_ref[0][0], corn_ref[0][1], corn_ref[1][0], corn_ref[1][1], corn_ref[2][0], corn_ref[2][1], corn_ref[3][0], corn_ref[3][1]], dtype=np.int32))
 				tag_detections.append(tag_detection)
 
 				# Invert the Tag Pose to get the Robot's Pose
@@ -96,10 +104,11 @@ class apriltag_detector:
 
 				# Broadcast Transform
 				self.tfbr.sendTransform((res_tvecs[0], res_tvecs[1], res_tvecs[2]),
+				#self.tfbr.sendTransform((res_tvecs[0], res_tvecs[1], 0),
 							(robot_pose_quat[0], robot_pose_quat[1], robot_pose_quat[2], robot_pose_quat[3]),
 							rospy.Time.now(),
 							"imx390_rear_optical",
-							"apriltag21")
+							"apriltag"+str(d['id']))
 			rospy.loginfo(logline)
 			tag_detections_header = std_msgs.msg.Header()
 			tag_detections_header.stamp = rospy.Time.now()
@@ -121,6 +130,7 @@ def main(args):
 	global camera_info
 	camera_info = rospy.wait_for_message(camera_info_topic, CameraInfo)
 	camera_info = np.array(camera_info.K, dtype=np.float32).reshape((3, 3))
+#	camera_info = None
 	rospy.loginfo("Camera intrinsic matrix: %s" % str(camera_info))
 	april = apriltag_detector()
 	try:
