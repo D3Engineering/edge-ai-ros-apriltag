@@ -8,7 +8,6 @@ import sys
 import cv2
 import numpy as np
 import tf
-from d3_apriltag.msg import AprilTagDetection, AprilTagDetectionArray
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Pose, PoseWithCovariance, PoseWithCovarianceStamped, Point, Quaternion
 from nav_msgs.msg import Odometry
@@ -68,7 +67,6 @@ class apriltag_odom:
             detections = detector.detect(cv_image)
             data = dict()
             logline = str(len(detections)) + " AprilTags detected.\n"
-            tag_detections = []
             for d in detections:
                 corn = np.array(d['lb-rb-rt-lt'], dtype=np.float32)
                 logline += "ID: " + str(d['id']) + ", LB: " + str(np.int32(corn[0])) + ", RB: " + str(
@@ -105,20 +103,6 @@ class apriltag_odom:
                 refine_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, sys.float_info.epsilon)
                 rvecs, tvecs = cv2.solvePnPRefineLM(objp, tag_corners, self.camera_info, None, rvecs, tvecs, refine_criteria)
                 rospy.loginfo(tvecs)
-
-                # Create a AprilTagDetection message
-                tag_pose_quat = R.from_rotvec(rvecs.squeeze()).as_quat()
-                tag_pose = Pose(Point(float(tvecs[0]), float(tvecs[1]), float(tvecs[2])),
-                                Quaternion(float(tag_pose_quat[0]), float(tag_pose_quat[1]), float(tag_pose_quat[2]),
-                                           float(tag_pose_quat[3])))
-                tag_pose_cov = PoseWithCovariance(tag_pose, [0] * 36)
-                tag_pose_header = std_msgs.msg.Header()
-                tag_pose_header.stamp = rospy.Time.now()
-                tag_pose_cov_stamp = PoseWithCovarianceStamped(tag_pose_header, tag_pose_cov)
-                tag_detection = AprilTagDetection([d['id']], [tag_size], tag_pose_cov_stamp, np.array(
-                    [corn_ref[0][0], corn_ref[0][1], corn_ref[1][0], corn_ref[1][1], corn_ref[2][0], corn_ref[2][1],
-                     corn_ref[3][0], corn_ref[3][1]], dtype=np.int32))
-                tag_detections.append(tag_detection)
 
                 # Invert the Tag Pose to get the Robot's Pose
                 rotmat = R.from_rotvec(rvecs.squeeze()).as_matrix()
