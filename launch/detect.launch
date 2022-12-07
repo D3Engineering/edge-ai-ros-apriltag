@@ -1,3 +1,4 @@
+<!-- XML -->
 <launch>
     <arg name="width" default="1280"/>
     <arg name="height" default="720"/>
