@@ -1,15 +1,15 @@
 <!-- XML -->
 <launch>
-    <arg name="width" default="1280"/>
-    <arg name="height" default="720"/>
+    <arg name="width" default="1920"/>
+    <arg name="height" default="1080"/>
 
     <!-- FROM v4l_imx390_raw.launch -->
 
     <!-- You can check the device ID and subdev ID for the IMX390 camera attached
     by running /opt/edge_ai_apps/scripts/setup_cameras.sh.
     Accordingly please update the parameters pass as arguments -->
-    <arg name="device" default="/dev/video4"/>
-    <arg name="subdev" default="/dev/v4l-subdev4"/>
+    <arg name="device" default="/dev/imx390-1-2"/>
+    <arg name="subdev" default="/dev/imx390-1-2-subdev"/>
     <!-- framerate (integer): inactive, 30 FPS (default, max) -->
     <!-- Can be enabled by e.g., adding videorate before tiovxdlcolorconvert, but it creases A72 loading -->
     <arg name="framerate" default="30"/>
@@ -23,7 +23,7 @@
     <arg name="dcc_2a_file" default="/opt/imaging/imx390/dcc_2a.bin"/>
     <!-- LDC binary file -->
     <!-- <arg name="ldc_dcc_file" default="/opt/imaging/imx390/imx390_35244_equidistant_1280x720_LUT.bin"/>-->
-    <arg name="ldc_dcc_file" default="/opt/imaging/imx390/imx390_robotcam4_equidistant_1280x720_LUT.bin"/>
+    <arg name="ldc_dcc_file" default="/opt/imaging/imx390/robotcam4_equidistant_1920x1080_LUT.bin"/>
     <!-- <arg name="ldc_dcc_file" default="/opt/imaging/imx390/robotcam3_equidistant_1280x720_LUT.bin"/>-->
     <!-- camera_info URL: replace with camera_info from camera calibration -->
     <!-- <arg name="camera_info_url" default="package://gscam/config/IMX390_HD_camera_info.yaml"/> -->
@@ -31,7 +31,7 @@
     <!-- NOTE: Using the rectified intrinsics here due to the tiovxldc being integrated into the gst pipeline -->
     <!--<arg name="camera_info_url" default="file:///opt/imaging/imx390/imx390_35244_equidistant_1280x720_rect.yml"/>-->
     <!--<arg name="camera_info_url" default="file:///opt/imaging/imx390/robotcam3_equidistant_1280x720_rect.yml"/>-->
-    <arg name="camera_info_url" default="file:///opt/imaging/imx390/imx390_robotcam4_equidistant_1280x720_rect.yml"/>
+    <arg name="camera_info_url" default="file:///opt/imaging/imx390/robotcam4_equidistant_1920x1080_rect.yml"/>
 
     <!-- GStreamer pipeline specified in gscam_config was tested with IMX390 camera,
         'edgeai-tiovx-modules' and 'edgeai-gst-plugins' are assumed to be already installed in TDA4 ROS container.

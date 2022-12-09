@@ -261,7 +261,7 @@ def main(args):
     april = apriltag_odom(num_poses, camera_info_topic, camera_image_topic, camera_tf_name, tag_tf_name)
     save_file_name = ""
     while running and not rospy.is_shutdown():
-        print("AprilTag Pose Estimation Commands: 'getpose', 'savepose', 'exit'")
+        print("AprilTag Pose Estimation Commands: 'getpose', 'savepose', 'getposeloop', 'exit'")
         prompt_string = ""
         if old_command != "":
             prompt_string = "[" + old_command + "] > "
