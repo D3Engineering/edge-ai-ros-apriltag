@@ -251,7 +251,7 @@ def main(args):
     running = True
     old_command = ""
     num_frames_str = ""
-    base_path = "/opt/robotics_sdk/"
+    base_path = "/opt/robotics_sdk/ros1/drivers/d3_inventory_demo/config/"
     tfl = tf.TransformListener()
     tfb = tf.TransformBroadcaster()
     print("AprilTag Pose Estimation")
@@ -261,7 +261,7 @@ def main(args):
     april = apriltag_odom(num_poses, camera_info_topic, camera_image_topic, camera_tf_name, tag_tf_name)
     save_file_name = ""
     while running and not rospy.is_shutdown():
-        print("AprilTag Pose Estimation Commands: 'getpose', 'savepose', 'getposeloop', 'exit'")
+        print("AprilTag Pose Estimation Commands: 'getpose', 'getposeloop', 'savepose', 'exit'")
         prompt_string = ""
         if old_command != "":
             prompt_string = "[" + old_command + "] > "
@@ -278,7 +278,7 @@ def main(args):
             april.get_pose()
         elif command == "savepose":
             while save_file_name == "" or save_file_name == base_path:
-                save_file_name = base_path + input("Enter name for Pose Save File: ")
+                save_file_name = base_path + input("Enter name for Pose Save File (suggested value=points.json): ")
             pose_name = ""
             while pose_name == "":
                 pose_name = input("Enter name for Saved Pose: ")
@@ -287,6 +287,7 @@ def main(args):
             lct = tfl.getLatestCommonTime("map", "base_link")
             robot_pose = tfl.lookupTransform("map", "base_link", lct)
             data = dict()
+            print("Using file " + save_file_name)
             try:
                 new_file = open(save_file_name, "x+")
                 print("File doesn't exist, creating...")
@@ -298,11 +299,21 @@ def main(args):
             with open(save_file_name, "r") as file:
                 data = json.load(file)
                 print("File loaded!")
-            with open(save_file_name, "w") as file:
-                data[pose_name] = tf_to_dict(robot_pose)
-                print(data[pose_name])
-                json.dump(data, file)
-                print("File updated and saved! Path: " + save_file_name)
+            if pose_name in data.keys():
+                confirm_overwrite = ""
+                while confirm_overwrite != "y" and confirm_overwrite != "n":
+                    confirm_overwrite = input("Pose " + pose_name + " already exists in selected file... Replace? [y/n]: ")
+            else:
+                confirm_overwrite = "y"
+            if confirm_overwrite == "y":
+                with open(save_file_name, "w") as file:
+                    data[pose_name] = tf_to_dict(robot_pose)
+                    print(data[pose_name])
+                    json.dump(data, file)
+                    print("File updated and saved! Path: " + save_file_name)
+            else:
+                print(tf_to_dict(robot_pose))
+                print("File has not been updated. Pose result has been printed above.")
         elif command == "getposeloop":
             num_poses_str = ""
             while not num_poses_str.isdigit():
