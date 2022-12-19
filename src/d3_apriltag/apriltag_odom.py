@@ -281,7 +281,7 @@ def main(args):
                 save_file_name = base_path + input("Enter name for Pose Save File (suggested value=points.json): ")
             pose_name = ""
             while pose_name == "":
-                pose_name = input("Enter name for Saved Pose: ")
+                pose_name = input("Enter name for Saved Pose: ").lower()
             april.get_pose()
             rospy.sleep(2)
             lct = tfl.getLatestCommonTime("map", "base_link")
