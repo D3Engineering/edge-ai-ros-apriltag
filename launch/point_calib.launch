@@ -71,13 +71,6 @@
         <remap from="/image_raw" to="/imx390/image_rgb"/>
     </node>
 
-    <node pkg="tf" type="static_transform_publisher" name="map_to_apriltag21" args="0 0 2.47 0 0 3.14159 map apriltag21 100" />
-    <!-- position is correct, orientation of base is wrong <node pkg="tf" type="static_transform_publisher" name="map_to_apriltag420" args="1.829 0 0 4.7124 0 1.5708 map apriltag420 100" /> -->
-    <node pkg="tf" type="static_transform_publisher" name="map_to_apriltag420" args="1.829 0 0 4.7124 0 1.5708 map apriltag420 100" />
-    <!-- [ACTIVE] rear camera pointed up, aligned per ROS REP 103 -->
-    <node pkg="tf" type="static_transform_publisher" name="imx390_rear_optical_to_base_link" args="0 0.125 0 1.57079 0 0 imx390_rear_optical base_link 100" />
-    <!-- rear camera pointed back, aligned with base_link <node pkg="tf" type="static_transform_publisher" name="imx390_rear_optical_to_base_link" args="0 0.125 0 0 0 0 imx390_rear_optical base_link 100" /> -->
-    <!-- rear camera pointed back, aligned per ROS REP 103 <node pkg="tf" type="static_transform_publisher" name="imx390_rear_optical_to_base_link" args="0 0 -0.125 0 1.5708 1.5708 imx390_rear_optical base_link 100" /> -->
-
+    <include file="$(find d3_inventory_demo)/launch/robot_tf.launch"/>
 </launch>
 

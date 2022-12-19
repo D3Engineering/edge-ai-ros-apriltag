@@ -245,7 +245,7 @@ def main(args):
     rospy.init_node('apriltag_detector', anonymous=True)
     camera_image_topic = "/imx390/image_raw_rgb"
     camera_info_topic = "/imx390/camera_info"
-    camera_tf_name = "imx390_rear_optical"
+    camera_tf_name = "imx390_rear_temp_optical"
     tag_tf_name = "apriltag21"
 
     running = True
@@ -284,8 +284,8 @@ def main(args):
                 pose_name = input("Enter name for Saved Pose: ").lower()
             april.get_pose()
             rospy.sleep(2)
-            lct = tfl.getLatestCommonTime("map", "base_link")
-            robot_pose = tfl.lookupTransform("map", "base_link", lct)
+            lct = tfl.getLatestCommonTime("map", "base_link_temp")
+            robot_pose = tfl.lookupTransform("map", "base_link_temp", lct)
             data = dict()
             print("Using file " + save_file_name)
             try:
