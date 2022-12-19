@@ -106,30 +106,30 @@ class apriltag_odom:
                 refine_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, sys.float_info.epsilon)
                 rvecs, tvecs = cv2.solvePnPRefineLM(objp, tag_corners, self.camera_info, None, rvecs, tvecs,
                                                     refine_criteria)
-                rospy.loginfo(tvecs)
+                rospy.logdebug(tvecs)
 
                 # Invert the Tag Pose to get the Robot's Pose
                 rotmat = R.from_rotvec(rvecs.squeeze()).as_matrix()
                 tfmat = np.hstack((rotmat, tvecs))
                 tfmat = np.vstack((tfmat, [0, 0, 0, 1]))
-                print("tfmat:")
-                print(tfmat)
+                rospy.logdebug("tfmat:")
+                rospy.logdebug(tfmat)
                 res_tfmat = np.linalg.inv(tfmat)
-                print("tfmat linalg:")
-                print(res_tfmat)
+                rospy.logdebug("tfmat linalg:")
+                rospy.logdebug(res_tfmat)
                 res_tvecs = res_tfmat[:3, 3]
                 res_rotmat = res_tfmat[:3, :3]
-                print("res_tvecs:")
-                print(res_tvecs)
-                print("res_rotmat:")
-                print(res_rotmat)
+                rospy.logdebug("res_tvecs:")
+                rospy.logdebug(res_tvecs)
+                rospy.logdebug("res_rotmat:")
+                rospy.logdebug(res_rotmat)
 
                 # Create a Robot Pose
                 robot_pose_quat = R.from_matrix(res_rotmat).as_quat()
                 robot_pose = Pose(Point(float(res_tvecs[0]), float(res_tvecs[1]), float(res_tvecs[2])),
                                   Quaternion(float(robot_pose_quat[0]), float(robot_pose_quat[1]),
                                              float(robot_pose_quat[2]), float(robot_pose_quat[3])))
-                rospy.loginfo(logline)
+                rospy.logdebug(logline)
                 return robot_pose
             rospy.loginfo(logline)
             return None
@@ -158,7 +158,7 @@ class apriltag_odom:
         poses = []
         fails = 0
         while len(poses) < self.num_frames:
-            print("Waiting on Frame " + str(len(poses) + 1) + "v" + str(fails) + "/" + str(self.num_frames))
+            rospy.logdebug("Waiting on Frame " + str(len(poses) + 1) + "v" + str(fails) + "/" + str(self.num_frames))
             image = rospy.wait_for_message(self.image_topic_name, Image)
             result = self.get_instant_pose(image)
             if result is not None:
@@ -174,24 +174,24 @@ class apriltag_odom:
         x_avg = x_sum / self.num_frames
         y_avg = y_sum / self.num_frames
         poses_to_discard = []
-        print("Average X: " + str(x_avg))
-        print("Average Y: " + str(y_avg))
+        rospy.logdebug("Average X: " + str(x_avg))
+        rospy.logdebug("Average Y: " + str(y_avg))
         for pose in poses:
-            print("Actual X: " + str(pose.position.x))
-            print("Actual Y: " + str(pose.position.y))
-            print("X Diff: " + str(abs(abs(x_avg) - abs(pose.position.x))))
-            print("Y Diff: " + str(abs(abs(y_avg) - abs(pose.position.y))))
+            rospy.logdebug("Actual X: " + str(pose.position.x))
+            rospy.logdebug("Actual Y: " + str(pose.position.y))
+            rospy.logdebug("X Diff: " + str(abs(abs(x_avg) - abs(pose.position.x))))
+            rospy.logdebug("Y Diff: " + str(abs(abs(y_avg) - abs(pose.position.y))))
             x_bad = abs(abs(x_avg) - abs(pose.position.x)) > 0.1
             y_bad = abs(abs(y_avg) - abs(pose.position.y)) > 0.1
-            print("X Bad: " + str(x_bad))
-            print("Y Bad: " + str(y_bad))
+            rospy.logdebug("X Bad: " + str(x_bad))
+            rospy.logdebug("Y Bad: " + str(y_bad))
             if x_bad or y_bad:
                 poses_to_discard.append(pose)
         for pose in poses_to_discard:
             poses.remove(pose)
-        print("Removed " + str(len(poses_to_discard)) + " poses out of " + str(self.num_frames) + " poses")
+        rospy.logdebug("Removed " + str(len(poses_to_discard)) + " poses out of " + str(self.num_frames) + " poses")
         if len(poses) == 0:
-            print("All poses were considered bad, trying pose estimation again...")
+            rospy.logdebug("All poses were considered bad, trying pose estimation again...")
             return self.get_pose()
         x_sum, y_sum, z_sum = [0] * 3
         conversion_quaternions = []
@@ -208,8 +208,8 @@ class apriltag_odom:
         (roll, pitch, yaw) = euler_from_quaternion([avg_quat_xyzw.x, avg_quat_xyzw.y, avg_quat_xyzw.z, avg_quat_xyzw.w])
         final_quat_arr = quaternion_from_euler(math.pi, 0, yaw)
         final_quat = Quaternion(final_quat_arr[0], final_quat_arr[1], final_quat_arr[2], final_quat_arr[3])
-        print("X Final: " + str(avg_point.x))
-        print("Y Final: " + str(avg_point.y))
+        rospy.logdebug("X Final: " + str(avg_point.x))
+        rospy.logdebug("Y Final: " + str(avg_point.y))
         camera_pose = Pose(avg_point, final_quat)
         tag2camera_broadcaster = tf2_ros.StaticTransformBroadcaster()
         static_transformStamped = self.setup_static_transform(self.tag_tf_name, self.camera_tf_name,
