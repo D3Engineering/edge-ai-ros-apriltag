@@ -243,8 +243,8 @@ def tf_to_dict(tf):
 
 def main(args):
     rospy.init_node('apriltag_detector', anonymous=True)
-    camera_image_topic = "/imx390/image_raw_rgb"
-    camera_info_topic = "/imx390/camera_info"
+    camera_image_topic = "/back/imx390/image_raw_rgb"
+    camera_info_topic = "/back/imx390/camera_info"
     camera_tf_name = "imx390_rear_temp_optical"
     tag_tf_name = "apriltag21"
 
