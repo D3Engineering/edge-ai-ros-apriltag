@@ -2,13 +2,16 @@
 <!--used to calibrate specific locations for the inventory demo-->
 <!--See d3_inventory_demo/README.md for more details on calibration-->
 <launch>
+    <!-- launch rear & side cameras -->
     <include file="$(find d3_inventory_demo)/launch/demo_cameras.launch"/>
 
+    <!--Start up apriltag detection node-->
     <node pkg="d3_apriltag" type="apriltag_odom.py" name="apriltag_node" output="screen">
         <param name="camera_name" value="imx390"/>
         <remap from="/image_raw" to="/imx390/image_rgb"/>
     </node>
 
+    <!-- Robot static transforms -->
     <include file="$(find d3_inventory_demo)/launch/robot_tf.launch"/>
 </launch>
 
