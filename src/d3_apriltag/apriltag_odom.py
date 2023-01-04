@@ -21,8 +21,22 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
 class apriltag_odom:
+    """
+    apriltag_odom is a class that encapsulates performing positioning calculations for the Robot based on a ceiling
+    mounted AprilTag fiducial marker
+    """
     def __init__(self, num_frames: int, camera_info_topic_name: str, image_topic_name: str, camera_tf_name: str,
                  tag_tf_name: str):
+        """
+        Construct an apriltag_odom instance
+
+        :param num_frames: The number of pose estimations that should be performed and averaged before returning results
+        :param camera_info_topic_name: The camera_info topic name to subscribe to for calibration parameters
+        :param image_topic_name: The image topic name to subscribe to for producing pose estimations
+        :param camera_tf_name: The name of the transform frame for the camera (which is assumed to be attached
+        to base_link)
+        :param tag_tf_name: The name of the transform frame for the AprilTag
+        """
         self.bridge = CvBridge()
         self.tfbr = tf.TransformBroadcaster()
         tfl = tf.TransformListener()
@@ -34,7 +48,7 @@ class apriltag_odom:
         map_frame = "map"
         rospy.sleep(1)
         now = rospy.Time.now()
-        tfl.waitForTransform(map_frame, self.tag_tf_name, now, rospy.Duration(4.0))
+        tfl.waitForTransform(map_frame, self.tag_tf_name, now, rospy.Duration(4.0))  # Wait for tag transform to appear
         self.tag_height = tfl.lookupTransform(map_frame, self.tag_tf_name, now)[0][2]
         # Wait until we have valid calibration data before starting
         rospy.loginfo("Waiting on camera_info: %s" % self.camera_info_topic_name)
@@ -44,6 +58,14 @@ class apriltag_odom:
         rospy.loginfo("Camera intrinsic matrix: %s" % str(self.camera_info))
 
     def averageQuaternions(self, Q):
+        """
+        Perform an average of quaternions
+        MIT License
+        Copyright (c) 2017 Christoph Hagen
+
+        :param Q: A numpy array of Quaternions in tuple (w,x,y,z) form
+        :return: A Quaternion in tuple (w,x,y,z) form that is an average of the Quaternions in Q
+        """
         # Number of quaternions to average
         M = Q.shape[0]
         A = np.zeros((4, 4))
@@ -63,6 +85,11 @@ class apriltag_odom:
         return np.real(eigenVectors[:, 0].flatten())
 
     def get_instant_pose(self, image: Image) -> Union[Pose, None]:
+        """
+        Get a single instantaneous pose based on an image
+        :param image: the ROS Image Message
+        :return: a ROS Pose for the camera that detected the AprilTag, or None if no AprilTags were detected
+        """
         try:
             cv_image = self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough')
             detector = apriltag("tagStandard41h12")
@@ -136,8 +163,16 @@ class apriltag_odom:
         except CvBridgeError as e:
             rospy.loginfo(e)
 
-    # Given a postiion & rotation (in quats) - returns a TransformStamped - ready for publishing
     def setup_static_transform(self, source, target, position, quaternion):
+        """
+        Given a position and rotation (quaternion), return a TransformStamped that is ready to be published
+
+        :param source: the source transform frame
+        :param target: the target transform frame
+        :param position: the position to make a transform for
+        :param quaternion: the quaternion to make a transform for
+        :return: a ROS TransformStamped
+        """
         static_transformStamped = TransformStamped()
 
         static_transformStamped.header.stamp = rospy.Time.now()
@@ -155,8 +190,15 @@ class apriltag_odom:
         return static_transformStamped
 
     def get_pose(self) -> Pose:
+        """
+        Get an averaged pose for the camera, using the parameters provided in the constructor and multiple instantaneous
+        poses from get_instant_pose(), then publish the result as a static transform so that move_base remains working
+
+        :return: The averaged camera pose
+        """
         poses = []
         fails = 0
+        # Capture self.num_frames instantaneous pose estimations
         while len(poses) < self.num_frames:
             rospy.logdebug("Waiting on Frame " + str(len(poses) + 1) + "v" + str(fails) + "/" + str(self.num_frames))
             image = rospy.wait_for_message(self.image_topic_name, Image)
@@ -166,6 +208,7 @@ class apriltag_odom:
                 fails = 0
             else:
                 fails += 1
+        # Average the captured pose estimations
         x_sum = 0
         y_sum = 0
         for pose in poses:
@@ -176,6 +219,7 @@ class apriltag_odom:
         poses_to_discard = []
         rospy.logdebug("Average X: " + str(x_avg))
         rospy.logdebug("Average Y: " + str(y_avg))
+        # Throw out outliers to reduce deviation
         for pose in poses:
             rospy.logdebug("Actual X: " + str(pose.position.x))
             rospy.logdebug("Actual Y: " + str(pose.position.y))
@@ -193,6 +237,7 @@ class apriltag_odom:
         if len(poses) == 0:
             rospy.logdebug("All poses were considered bad, trying pose estimation again...")
             return self.get_pose()
+        # Calculate an average with the remaining pose estimations
         x_sum, y_sum, z_sum = [0] * 3
         conversion_quaternions = []
         for pose in poses:
@@ -202,6 +247,7 @@ class apriltag_odom:
             conversion_quaternions.append(
                 (pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z))
         plen = len(poses)
+        # Create the ROS Pose
         avg_point = Point(x_sum / plen, y_sum / plen, self.tag_height)
         avg_quat_wxyz = self.averageQuaternions(np.array(conversion_quaternions, dtype=float))
         avg_quat_xyzw = Quaternion(avg_quat_wxyz[1], avg_quat_wxyz[2], avg_quat_wxyz[3], avg_quat_wxyz[0])
@@ -211,20 +257,22 @@ class apriltag_odom:
         rospy.logdebug("X Final: " + str(avg_point.x))
         rospy.logdebug("Y Final: " + str(avg_point.y))
         camera_pose = Pose(avg_point, final_quat)
+        # Create and Publish the Static Transform
         tag2camera_broadcaster = tf2_ros.StaticTransformBroadcaster()
         static_transformStamped = self.setup_static_transform(self.tag_tf_name, self.camera_tf_name,
                                                               [avg_point.x, avg_point.y, avg_point.z],
                                                               final_quat_arr)
         tag2camera_broadcaster.sendTransform(static_transformStamped)
-        # self.tfbr.sendTransform((avg_point.x, avg_point.y, avg_point.z),
-        #                         (final_quat.x, final_quat.y, final_quat.z, final_quat.w),
-        #                         rospy.Time.now(),
-        #                         self.camera_tf_name,
-        #                         self.tag_tf_name)
         return camera_pose
 
 
 def tf_to_dict(tf):
+    """
+    Convert a ROS Pose to a Dictionary
+
+    :param tf: the Pose to convert
+    :return: a dictionary with the values contained in the Pose
+    """
     d = {
         "position": {
             "x": tf[0][0],
@@ -242,6 +290,12 @@ def tf_to_dict(tf):
 
 
 def main(args):
+    """
+    Command Line Utility for AprilTag Pose Estimation and Scene Configuration
+
+    :param args: Unused
+    :return: None
+    """
     rospy.init_node('apriltag_detector', anonymous=True)
     camera_image_topic = "/back/imx390/image_raw_rgb"
     camera_info_topic = "/back/imx390/camera_info"
@@ -275,8 +329,10 @@ def main(args):
                 continue
         old_command = command
         if command == "getpose":
+            # getpose runs one iteration of get_pose()
             april.get_pose()
         elif command == "savepose":
+            # savepose allows you to select a JSON file and save named results of get_pose
             while save_file_name == "" or save_file_name == base_path:
                 save_file_name = base_path + input("Enter name for Pose Save File (suggested value=points.json): ")
             pose_name = ""
@@ -315,6 +371,7 @@ def main(args):
                 print(tf_to_dict(robot_pose))
                 print("File has not been updated. Pose result has been printed above.")
         elif command == "getposeloop":
+            # getposeloop runs get_instant_pose a specified number of times, updating a transform for each result gotten
             num_poses_str = ""
             while not num_poses_str.isdigit():
                 num_poses_str = input("Enter number of iterations of Pose Estimation that should be looped through: ")
@@ -337,6 +394,7 @@ def main(args):
                 else:
                     fails += 1
         elif command == "exit":
+            # clean exit
             running = False
         else:
             print("Invalid Command")
